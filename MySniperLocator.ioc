@@ -1,5 +1,5 @@
 #MicroXplorer Configuration settings - do not modify
-#Mon Apr 06 23:51:08 EEST 2015
+#Wed Apr 08 09:54:25 EEST 2015
 ADC1.Channel-0\#ChannelRegularConversion=ADC_CHANNEL_1
 ADC1.Channel-1\#ChannelRegularConversion=ADC_CHANNEL_2
 ADC1.Channel-2\#ChannelRegularConversion=ADC_CHANNEL_3
@@ -333,6 +333,8 @@ RCC.VCOI2SOutputFreq_Value=192000000
 RCC.VCOInputFreq_Value=1000000
 RCC.VCOOutputFreq_Value=336000000
 RCC.VcooutputI2S=96000000
+RTC.Format=FORMAT_BIN
+RTC.IPParameters=Format
 SDIO.BusWide=SDIO_BUS_WIDE_1B
 SDIO.IPParameters=BusWide
 SH.ADCx_IN1.0=ADC1_IN1,IN1
