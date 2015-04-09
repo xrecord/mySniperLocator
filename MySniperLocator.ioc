@@ -1,5 +1,5 @@
 #MicroXplorer Configuration settings - do not modify
-#Wed Apr 08 09:54:25 EEST 2015
+#Thu Apr 09 14:22:28 EEST 2015
 ADC1.Channel-0\#ChannelRegularConversion=ADC_CHANNEL_1
 ADC1.Channel-1\#ChannelRegularConversion=ADC_CHANNEL_2
 ADC1.Channel-2\#ChannelRegularConversion=ADC_CHANNEL_3
@@ -298,7 +298,7 @@ ProjectManager.LibraryCopy=0
 ProjectManager.ProjectBuild=false
 ProjectManager.ProjectFileName=MySniperLocator.ioc
 ProjectManager.ProjectName=MySniperLocator
-ProjectManager.TargetToolchain=EWARM
+ProjectManager.TargetToolchain=SW4STM32
 ProjectManager.ToolChainLocation=
 RCC.48MHZClocksFreq_Value=48000000
 RCC.AHBFreq_Value=168000000
@@ -316,7 +316,7 @@ RCC.HCLKFreq_Value=168000000
 RCC.HSE_VALUE=8000000
 RCC.HSI_VALUE=16000000
 RCC.I2SClocksFreq_Value=96000000
-RCC.IPParameters=PLLSource,LSI_VALUE,APB1TimFreq_Value,APB2Freq_Value,MCO2PinFreq_Value,APB1CLKDivider,FCLKCortexFreq_Value,48MHZClocksFreq_Value,AHBFreq_Value,VCOInputFreq_Value,I2SClocksFreq_Value,SYSCLKFreq_VALUE,PLLQ,SYSCLKSource,LSE_VALUE,HSE_VALUE,HSI_VALUE,VCOI2SOutputFreq_Value,PLLCLKFreq_Value,RTCFreq_Value,FamilyName,HCLKFreq_Value,EthernetFreq_Value,APB2CLKDivider,PLLM,PLLN,VCOOutputFreq_Value,CortexFreq_Value,VcooutputI2S,APB1Freq_Value,RTCHSEDivFreq_Value,APB2TimFreq_Value
+RCC.IPParameters=PLLSource,LSI_VALUE,APB1TimFreq_Value,APB2Freq_Value,MCO2PinFreq_Value,APB1CLKDivider,PLLSourceVirtualString,FCLKCortexFreq_Value,48MHZClocksFreq_Value,AHBFreq_Value,VCOInputFreq_Value,I2SClocksFreq_Value,SYSCLKFreq_VALUE,PLLQ,SYSCLKSource,LSE_VALUE,HSE_VALUE,HSI_VALUE,VCOI2SOutputFreq_Value,PLLCLKFreq_Value,RTCFreq_Value,FamilyName,HCLKFreq_Value,EthernetFreq_Value,APB2CLKDivider,PLLM,PLLN,VCOOutputFreq_Value,CortexFreq_Value,VcooutputI2S,APB1Freq_Value,RTCHSEDivFreq_Value,APB2TimFreq_Value
 RCC.LSE_VALUE=32768
 RCC.LSI_VALUE=32000
 RCC.MCO2PinFreq_Value=168000000
@@ -325,6 +325,7 @@ RCC.PLLM=8
 RCC.PLLN=336
 RCC.PLLQ=7
 RCC.PLLSource=RCC_PLLSOURCE_HSE
+RCC.PLLSourceVirtualString=RCC_PLLSOURCE_HSE
 RCC.RTCFreq_Value=32000
 RCC.RTCHSEDivFreq_Value=4000000
 RCC.SYSCLKFreq_VALUE=168000000
