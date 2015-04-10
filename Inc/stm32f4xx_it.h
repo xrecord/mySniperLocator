@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    stm32f4xx_it.h
-  * @date    09/04/2015 14:22:32
+  * @date    10/04/2015 14:40:46
   * @brief   This file contains the headers of the interrupt handlers.
   ******************************************************************************
   *
@@ -47,7 +47,6 @@
 /* Exported functions ------------------------------------------------------- */
 
 void DMA2_Stream0_IRQHandler(void);
-void EXTI0_IRQHandler(void);
 void SysTick_Handler(void);
 void OTG_FS_IRQHandler(void);
 
