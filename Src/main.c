@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * File Name          : main.c
-  * Date               : 10/04/2015 14:40:47
+  * Date               : 12/04/2015 00:57:37
   * Description        : Main program body
   ******************************************************************************
   *
@@ -34,7 +34,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
-#include "cmsis_os.h"
 #include "fatfs.h"
 #include "usb_device.h"
 
@@ -51,10 +50,8 @@ RTC_HandleTypeDef hrtc;
 SD_HandleTypeDef hsd;
 HAL_SD_CardInfoTypedef SDCardInfo;
 
-osThreadId defaultTaskHandle;
-
 /* USER CODE BEGIN PV */
-#define DATA_SIZE       0x800
+#define DATA_SIZE       0x1000
 typedef enum {
   IDLE,
   INIT_RECORD,
@@ -67,7 +64,9 @@ typedef enum {
 FRESULT res; 
 FATFS SDFatFs;  /* File system object for SD card logical drive */
 FIL MyFile;     /* File object */
-char SDPath[4]; /* SD card logical drive path */
+FIL MyFile_time;     /* File object */
+uint8_t SD_DriverNum;
+//char SD_Path[4]/*={'1',':','/','\0'}*/; /* SD card logical drive path */
 DWORD size; 
 char last[2] = {'0','\0'};
 char readbuf[2] = {'0','\0'};
@@ -75,6 +74,8 @@ uint32_t byteswritten, bytesread;
 uint16_t ADCConvValues[DATA_SIZE];
 extern volatile uint16_t DataReceived;
 char nameOfFile[];
+char timeOfFile[];
+int countData = 0;
 //----------------------------------//
 
 state_t state = IDLE;
@@ -91,13 +92,14 @@ static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_SDIO_SD_Init(void);
-void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 static void Error_HandlerSD(void)
 {
   while(1)
   {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
     for (int i = 0; i < 65550000; i++ )
       __NOP();
@@ -114,6 +116,20 @@ static void Error_HandlerADC(void)
     for (int i = 0; i < 65550000; i++ )
       __NOP();
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
+    for (int i = 0; i < 65550000; i++ )
+      __NOP();
+  }
+}
+static void Error_HandlerSync(void)
+{
+  while(1)
+  {
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+    for (int i = 0; i < 65550000; i++ )
+      __NOP();
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
     for (int i = 0; i < 65550000; i++ )
       __NOP();
   }
@@ -149,14 +165,16 @@ int main(void)
   MX_ADC1_Init();
   MX_RTC_Init();
   MX_SDIO_SD_Init();
+  //MX_FATFS_Init();
+  MX_USB_DEVICE_Init();
 
   /* USER CODE BEGIN 2 */
   /*##-1- Link the micro SD disk I/O driver ##################################*/
   
-  FATFS_LinkDriver(&SD_Driver, SDPath);
+  FATFS_LinkDriver(&SD_Driver, SD_Path);
   {
     /*##-2- Register the file system object to the FatFs module ##############*/
-    if(f_mount(&SDFatFs, (TCHAR const*)SDPath, 0) != FR_OK)
+    if((res = f_mount(&SDFatFs, (TCHAR const*)SD_Path, 0)) != FR_OK)
     {
       /* FatFs Initialization Error */
       Error_HandlerSD();
@@ -200,46 +218,71 @@ int main(void)
   
   /* USER CODE END 2 */
 
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
-
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
-
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
-
-  /* Create the thread(s) */
-  /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 8 * configMINIMAL_STACK_SIZE);
-  defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
- 
-
-  /* Start scheduler */
-  osKernelStart();
-  
-  /* We should never get here as control is now taken by the scheduler */
-
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    switch (state)
+      //----------------------------------------//
+    {
+    case IDLE:
+      if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1)
+      {
+        state = INIT_RECORD;
+        
+      }
+      break;
+      //----------------------------------------//
+    case INIT_RECORD:
+      
+      HAL_RTC_GetTime(&hrtc, &sTimeNow, RTC_FORMAT_BIN);
+      HAL_RTC_GetDate(&hrtc, &sDateNow, RTC_FORMAT_BIN);
+      char nameOfFile[] = {(last[0]),'_',(sTimeNow.Hours+48),'h','_',(sTimeNow.Minutes+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','\0'};
+      if((res = f_open(&MyFile, nameOfFile, FA_CREATE_ALWAYS | FA_WRITE)) != FR_OK)
+      {
+        Error_HandlerSD();
+      } 
+      char timeOfFile[] = {(last[0]),'_',(sTimeNow.Hours+48),'h','_',(sTimeNow.Minutes+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','_','t','.','t','x','t','\0'};
+      if((res = f_open(&MyFile_time, timeOfFile, FA_CREATE_ALWAYS | FA_WRITE)) != FR_OK)
+      {
+        Error_HandlerSD();
+      } 
+      for (int i=0; i < 24000000; i++)
+      {
+        __NOP();        
+      }
+      if(HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADCConvValues, DATA_SIZE) != HAL_OK) 
+      {
+        Error_HandlerADC();
+      }
+      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+      state = RECORD;
+      file_writing = 1;
+      
+      break;
+  
+      //----------------------------------------//
+    case RECORD:
+        if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1)
+        {
+          state = RECORD_READY;
+          while (file_writing) {};
+          f_close(&MyFile);
+          f_close(&MyFile_time);
+          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+          state = IDLE;
+        }
+ 
+      break;
+}
+
+  }
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
     
-  }
   /* USER CODE END 3 */
 
 }
@@ -320,9 +363,10 @@ void MX_ADC1_Init(void)
     /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
     */
   sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = 1;
+   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
   HAL_ADC_ConfigChannel(&hadc1, &sConfig);
+
 }
 
 /* RTC init function */
@@ -533,8 +577,11 @@ void HAL_ADC_ConvHalfCpltCallback(ADC_HandleTypeDef* hadc)
   res = f_write(&MyFile, ADCConvValues, DATA_SIZE, (void *)&byteswritten);
   if((byteswritten == 0) || (res != FR_OK))
   {
-    /* 'Data.TXT' file Write or EOF Error */
-    Error_HandlerSD();
+    res = f_write(&MyFile, ADCConvValues, DATA_SIZE, (void *)&byteswritten);
+    if((byteswritten == 0) || (res != FR_OK))
+    {
+      Error_HandlerSD();
+    }
   }
 }
 
@@ -542,11 +589,43 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
   /*##-5- Write data to the text file ################################*/
   res = f_write(&MyFile, (const char * )(&ADCConvValues[DATA_SIZE / 2]), DATA_SIZE, (void *)&byteswritten);
-  if((byteswritten == 0) || (res != FR_OK))
-  {
-    /* 'Data.TXT' file Write or EOF Error */
-    Error_HandlerSD();
-  }
+  countData++;
+    if((byteswritten == 0) || (res != FR_OK))
+    {
+      /* 'Data.TXT' file Write or EOF Error */
+      Error_HandlerSD();
+    }
+    if (countData == 256)
+    {
+      countData = 0;
+      if((res = f_sync (&MyFile)) != FR_OK)
+      {
+        if((res = f_sync (&MyFile)) != FR_OK)
+        {
+          Error_HandlerSync();
+        }
+      }
+      HAL_RTC_GetTime(&hrtc, &sTimeNow, RTC_FORMAT_BIN);
+      HAL_RTC_GetDate(&hrtc, &sDateNow, RTC_FORMAT_BIN);
+      char timeOfFile[] = {(sTimeNow.Hours+48),':',((sTimeNow.Minutes/10)+48),((sTimeNow.Minutes%10)+48),':',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'\n'};
+      res = f_write(&MyFile_time, timeOfFile, sizeof(timeOfFile), (void *)&byteswritten);
+      if((byteswritten == 0) || (res != FR_OK))
+      {
+        res = f_write(&MyFile, ADCConvValues, DATA_SIZE, (void *)&byteswritten);
+        if((byteswritten == 0) || (res != FR_OK))
+        {
+          Error_HandlerSD();
+        }
+      }
+      if((res = f_sync (&MyFile_time)) != FR_OK)
+      {
+        if((res = f_sync (&MyFile_time)) != FR_OK)
+        {
+          Error_HandlerSync();
+        }
+      }
+    }
+    
   if (state == RECORD_READY)
   {
     HAL_ADC_Stop_DMA(&hadc1);
@@ -562,76 +641,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 char string[12] = "Flyability\r\n";
 
 /* USER CODE END 4 */
-
-/* StartDefaultTask function */
-void StartDefaultTask(void const * argument)
-{
-  /* init code for FATFS */
-  MX_FATFS_Init();
-
-  /* init code for USB_DEVICE */
-  MX_USB_DEVICE_Init();
-
-  /* USER CODE BEGIN 5 */
-  
-  
- 
-  
-  /* Infinite loop */
-  for(;;)
-  {
-    switch (state)
-    {
-      //----------------------------------------//
-    case IDLE:
-      if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1)
-      { 
-        state = INIT_RECORD;
-        
-      }
-      break;
-      //----------------------------------------//
-    case INIT_RECORD:
-      
-      HAL_RTC_GetTime(&hrtc, &sTimeNow, RTC_FORMAT_BIN);
-      HAL_RTC_GetDate(&hrtc, &sDateNow, RTC_FORMAT_BIN);
-      char nameOfFile[] = {(last[0]),'_',(sTimeNow.Hours+48),'h','_',(sTimeNow.Minutes+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','\0'};
-      if((res = f_open(&MyFile, nameOfFile, FA_CREATE_ALWAYS | FA_WRITE)) != FR_OK)
-      {
-        Error_HandlerSD();
-      } 
-      for (int i=0; i < 24000000; i++)
-      {
-        __NOP();        
-      }
-      if(HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADCConvValues, DATA_SIZE) != HAL_OK) 
-      {  
-        Error_HandlerADC();
-      }
-      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-      state = RECORD;
-      file_writing = 1;
-      
-      break;
-      //----------------------------------------//
-    case RECORD:
-      {
-        if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1)
-        {          
-          state = RECORD_READY;  
-          while (file_writing) {};
-          f_close(&MyFile);
-          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-          state = IDLE;
-        }
-      }
-      break;
-    }
-  }
-  /* USER CODE END 5 */ 
-}
 
 #ifdef USE_FULL_ASSERT
 

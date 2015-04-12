@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * @file    stm32f4xx_it.c
-  * @date    10/04/2015 14:40:46
+  * @date    12/04/2015 00:57:37
   * @brief   Interrupt Service Routines.
   ******************************************************************************
   *
@@ -35,14 +35,12 @@
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx.h"
 #include "stm32f4xx_it.h"
-#include "cmsis_os.h"
 
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern void xPortSysTickHandler(void);
 extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 extern DMA_HandleTypeDef hdma_adc1;
 
@@ -56,7 +54,7 @@ extern DMA_HandleTypeDef hdma_adc1;
 void SysTick_Handler(void)
 {
   HAL_IncTick();
-  osSystickHandler();
+  HAL_SYSTICK_IRQHandler();
 }
 
 /******************************************************************************/
