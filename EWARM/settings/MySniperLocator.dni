@@ -1,5 +1,5 @@
 [DebugChecksum]
-Checksum=-1691156034
+Checksum=470418944
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -18,7 +18,7 @@ ByteLimit=50
 [CallStack]
 ShowArgs=0
 [Disassembly]
-MixedMode=1
+MixedMode=0
 [SWOTraceHWSettings]
 OverrideDefaultClocks=0
 CpuClock=72000000
@@ -59,9 +59,6 @@ Fmt3=uint32_t[3]	1	0
 Fmt0={W}1:sTimeNow.Hours	3	0
 Fmt1={W}1:sTimeNow.Minutes	3	0
 Fmt2={W}1:sTimeNow.Seconds	3	0
-[Trace2]
-Enabled=0
-ShowSource=0
 [SWOTraceWindow]
 PcSampling=0
 InterruptLogs=0
@@ -84,23 +81,6 @@ GraphEnabled=0
 ShowTimeLog=1
 ShowTimeSum=1
 SumSortOrder=0
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Middlewares\Third_Party\FatFs\src\ff.c}.2099.2" 0 0 1 "" 0 "" 0
-Bp1=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.669.1" 0 0 1 "" 0 "" 0
-Bp2=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.669.1" 0 0 1 "" 0 "" 0
-Bp3=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.659.1" 0 0 1 "" 0 "" 0
-Bp4=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.645.11" 0 0 1 "" 0 "" 0
-Bp5=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\fatfs.c}.47.3" 0 0 1 "" 0 "" 0
-Bp6=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.621.11" 0 0 1 "" 0 "" 0
-Bp7=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.614.11" 0 0 1 "" 0 "" 0
-Bp8=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.602.11" 0 0 1 "" 0 "" 0
-Bp9=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.593.7" 0 0 1 "" 0 "" 0
-Bp10=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.580.7" 0 0 1 "" 0 "" 0
-Bp11=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.588.3" 0 0 1 "" 0 "" 0
-Bp12=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.574.3" 0 0 1 "" 0 "" 0
-Count=13
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -108,9 +88,6 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
-[Aliases]
-Count=0
-SuppressDialog=0
 [CallStackLog]
 Enabled=0
 [DriverProfiling]
@@ -119,3 +96,14 @@ Mode=3
 Graph=0
 Symbiont=0
 Exclusions=
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Bp0=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Middlewares\Third_Party\FatFs\src\ff.c}.2099.2" 0 0 1 "" 0 "" 0
+Bp1=_ 0 "EMUL_CODE" "{$PROJ_DIR$\..\Src\fatfs.c}.47.3" 0 0 1 "" 0 "" 0
+Bp2=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\main.c}.695.5" 0 0 1 "" 0 "" 0
+Bp3=_ 1 "EMUL_CODE" "{$PROJ_DIR$\..\Src\stm32f4xx_it.c}.104.3" 0 0 1 "" 0 "" 0
+Count=4
+[Aliases]
+Count=0
+SuppressDialog=0

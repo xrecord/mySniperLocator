@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * File Name          : main.c
-  * Date               : 12/04/2015 00:57:37
+  * Date               : 25/04/2015 16:09:59
   * Description        : Main program body
   ******************************************************************************
   *
@@ -50,8 +50,10 @@ RTC_HandleTypeDef hrtc;
 SD_HandleTypeDef hsd;
 HAL_SD_CardInfoTypedef SDCardInfo;
 
+UART_HandleTypeDef huart3;
+
 /* USER CODE BEGIN PV */
-#define DATA_SIZE       0x1000
+#define DATA_SIZE       0x1008
 typedef enum {
   IDLE,
   INIT_RECORD,
@@ -59,6 +61,13 @@ typedef enum {
   RECORD_READY,
   READ_BUFFER       
 } state_t;
+typedef enum {
+  READY = 20,
+  START,
+  STOP,
+  ERROR_STATUS,
+  RESET_POWER
+} COMMAND;
 
 //-----------------------------------//
 FRESULT res; 
@@ -83,6 +92,11 @@ volatile uint8_t file_writing = 0;
 
 RTC_TimeTypeDef sTimeNow;
 RTC_DateTypeDef sDateNow;
+//---------------UART------------------//
+uint8_t aTxBuffer[2]; 
+uint8_t aRxBuffer[2];
+HAL_StatusTypeDef res_uart;
+//---------------UART_END------------------//
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,6 +106,7 @@ static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_SDIO_SD_Init(void);
+static void MX_USART3_UART_Init(void);
 
 /* USER CODE BEGIN PFP */
 static void Error_HandlerSD(void)
@@ -100,11 +115,11 @@ static void Error_HandlerSD(void)
   {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-    for (int i = 0; i < 65550000; i++ )
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+    for (int i = 0; i < 24000000; i++ )
       __NOP();
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-    for (int i = 0; i < 65550000; i++ )
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+    for (int i = 0; i < 24000000; i++ )
       __NOP();
   }
 }
@@ -112,11 +127,13 @@ static void Error_HandlerADC(void)
 {
   while(1)
   {
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
-    for (int i = 0; i < 65550000; i++ )
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+    for (int i = 0; i < 24000000; i++ )
       __NOP();
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
-    for (int i = 0; i < 65550000; i++ )
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+    for (int i = 0; i < 24000000; i++ )
       __NOP();
   }
 }
@@ -126,13 +143,15 @@ static void Error_HandlerSync(void)
   {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
-    for (int i = 0; i < 65550000; i++ )
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+    while (1)
       __NOP();
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-    for (int i = 0; i < 65550000; i++ )
-      __NOP();
+    
   }
+}
+static void Error_Handler_UART()
+{
+__NOP();
 }
 
 /* USER CODE END PFP */
@@ -165,7 +184,8 @@ int main(void)
   MX_ADC1_Init();
   MX_RTC_Init();
   MX_SDIO_SD_Init();
-  //MX_FATFS_Init();
+  MX_USART3_UART_Init();
+ // MX_FATFS_Init();
   MX_USB_DEVICE_Init();
 
   /* USER CODE BEGIN 2 */
@@ -213,7 +233,19 @@ int main(void)
       }
     }
   }
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+  aTxBuffer[0] = READY;
+  aTxBuffer[1] = '\0';
+   while(res_uart = HAL_UART_Transmit_IT(&huart3, (uint8_t*)aTxBuffer, 2)!= HAL_OK)
+  {
+    Error_Handler_UART();
+  }
+  if(HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 2) != HAL_OK)
+  {
+    Error_Handler_UART();
+  }
+  
+ 
   
   
   /* USER CODE END 2 */
@@ -222,6 +254,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+   
     switch (state)
       //----------------------------------------//
     {
@@ -255,8 +288,7 @@ int main(void)
       {
         Error_HandlerADC();
       }
-      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
       state = RECORD;
       file_writing = 1;
       
@@ -270,8 +302,7 @@ int main(void)
           while (file_writing) {};
           f_close(&MyFile);
           f_close(&MyFile_time);
-          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+          HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
           state = IDLE;
         }
  
@@ -357,14 +388,11 @@ void MX_ADC1_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_2;
   sConfig.Rank = 2;
-  sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
   HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
     /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
     */
   sConfig.Channel = ADC_CHANNEL_1;
-   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
   HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
 }
@@ -435,6 +463,22 @@ void MX_SDIO_SD_Init(void)
 
 }
 
+/* USART3 init function */
+void MX_USART3_UART_Init(void)
+{
+
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 9600;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  HAL_UART_Init(&huart3);
+
+}
+
 /** 
   * Enable DMA controller clock
   */
@@ -461,7 +505,6 @@ void MX_DMA_Init(void)
      PA6   ------> SPI1_MISO
      PA7   ------> SPI1_MOSI
      PB10   ------> I2S2_CK
-     PB6   ------> I2C1_SCL
 */
 void MX_GPIO_Init(void)
 {
@@ -476,8 +519,10 @@ void MX_GPIO_Init(void)
   __GPIOB_CLK_ENABLE();
   __GPIOD_CLK_ENABLE();
 
-  /*Configure GPIO pin : PE3 */
-  GPIO_InitStruct.Pin = GPIO_PIN_3;
+  /*Configure GPIO pins : PE2 PE3 PE4 PE5 
+                           PE6 PE0 PE1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4|GPIO_PIN_5 
+                          |GPIO_PIN_6|GPIO_PIN_0|GPIO_PIN_1;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
@@ -549,19 +594,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB6 */
-  GPIO_InitStruct.Pin = GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_AF_OD;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
-  GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PE1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_1;
-  GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
+  /*Configure GPIO pins : PB4 PB5 PB6 PB7 
+                           PB8 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7 
+                          |GPIO_PIN_8;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
@@ -595,7 +635,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
       /* 'Data.TXT' file Write or EOF Error */
       Error_HandlerSD();
     }
-    if (countData == 256)
+    if (countData == 16)
     {
       countData = 0;
       if((res = f_sync (&MyFile)) != FR_OK)
@@ -640,6 +680,27 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 char string[12] = "Flyability\r\n";
 
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+__NOP();
+}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  switch (aRxBuffer[0])
+  {
+  case START:
+    state = INIT_RECORD;
+    break;
+  case STOP:
+    state = RECORD_READY;
+    while (file_writing) {};
+    f_close(&MyFile);
+    f_close(&MyFile_time);
+    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+    state = IDLE;
+    break; 
+  }
+}
 /* USER CODE END 4 */
 
 #ifdef USE_FULL_ASSERT
