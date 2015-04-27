@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * File Name          : stm32f4xx_hal_msp.c
-  * Date               : 25/04/2015 16:09:58
+  * Date               : 27/04/2015 10:56:36
   * Description        : This file provides code for the MSP Initialization 
   *                      and de-Initialization codes.
   ******************************************************************************
@@ -263,7 +263,7 @@ void HAL_UART_MspInit(UART_HandleTypeDef* huart)
     HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
   /* System interrupt init*/
-    HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
+    HAL_NVIC_SetPriority(USART3_IRQn, 5, 0);
     HAL_NVIC_EnableIRQ(USART3_IRQn);
   /* USER CODE BEGIN USART3_MspInit 1 */
 

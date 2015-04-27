@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * File Name          : main.c
-  * Date               : 25/04/2015 16:09:59
+  * Date               : 27/04/2015 10:56:37
   * Description        : Main program body
   ******************************************************************************
   *
@@ -62,11 +62,14 @@ typedef enum {
   READ_BUFFER       
 } state_t;
 typedef enum {
-  READY = 20,
+  READY = 0x01,
   START,
   STOP,
-  ERROR_STATUS,
-  RESET_POWER
+  ERROR_SD,
+  ERROR_SYNC,
+  ERROR_ADC,
+  RESET_POWER,
+  OK
 } COMMAND;
 
 //-----------------------------------//
@@ -149,7 +152,7 @@ static void Error_HandlerSync(void)
     
   }
 }
-static void Error_Handler_UART()
+static void Error_Handler_UART(void)
 {
 __NOP();
 }
@@ -233,14 +236,18 @@ int main(void)
       }
     }
   }
-  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+  
   aTxBuffer[0] = READY;
-  aTxBuffer[1] = '\0';
-   while(res_uart = HAL_UART_Transmit_IT(&huart3, (uint8_t*)aTxBuffer, 2)!= HAL_OK)
+  while(aRxBuffer[0] != OK)
   {
-    Error_Handler_UART();
+    if(res_uart = HAL_UART_Transmit_IT(&huart3, (uint8_t*)aTxBuffer, 1)!= HAL_OK)
+    {
+      Error_Handler_UART();
+    }
+    HAL_UART_Receive(&huart3, (uint8_t *)aRxBuffer, 1, 500);
   }
-  if(HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 2) != HAL_OK)
+  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
+  if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
   {
     Error_Handler_UART();
   }
@@ -291,6 +298,10 @@ int main(void)
       HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
       state = RECORD;
       file_writing = 1;
+      if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
+      {
+        Error_Handler_UART();
+      }
       
       break;
   
@@ -299,11 +310,18 @@ int main(void)
         if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == 1)
         {
           state = RECORD_READY;
+        }
+        if (state == RECORD_READY)
+        {
           while (file_writing) {};
           f_close(&MyFile);
           f_close(&MyFile_time);
           HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
           state = IDLE;
+          if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
+          {
+            Error_Handler_UART();
+          }
         }
  
       break;
@@ -680,12 +698,12 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 
 char string[12] = "Flyability\r\n";
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-__NOP();
-}
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+  while(aTxBuffer[0] != OK)
+  {
+  
+  }
   switch (aRxBuffer[0])
   {
   case START:
@@ -693,12 +711,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     break;
   case STOP:
     state = RECORD_READY;
-    while (file_writing) {};
-    f_close(&MyFile);
-    f_close(&MyFile_time);
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-    state = IDLE;
     break; 
+  }
+  if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
+  {
+    Error_Handler_UART();
   }
 }
 /* USER CODE END 4 */
