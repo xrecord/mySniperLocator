@@ -250,7 +250,7 @@ int main(void)
               }
               else
               {
-                  //erro
+                  //error
               }
           }
           else

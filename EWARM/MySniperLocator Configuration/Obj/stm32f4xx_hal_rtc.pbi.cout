@@ -10,17 +10,11 @@ D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Drivers\STM32F4xx_HAL_Driver\Inc\Lega
 -I
 D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\Third_Party\FatFs\src\drivers
 -I
-D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\portable\IAR\ARM_CM4F
--I
 D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc
 -I
 D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc
 -I
 D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\Third_Party\FatFs\src
--I
-D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\include
--I
-D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS
 -I
 D:\REPOSITORY\GIT\mySniperLocator\EWARM\..\Drivers\CMSIS\Include
 -I
@@ -40,17 +34,11 @@ D:\REPOSITORY\GIT\mySniperLocator\Drivers\STM32F4xx_HAL_Driver\Inc\Legacy
 -I
 D:\REPOSITORY\GIT\mySniperLocator\Middlewares\Third_Party\FatFs\src\drivers
 -I
-D:\REPOSITORY\GIT\mySniperLocator\Middlewares\Third_Party\FreeRTOS\Source\portable\IAR\ARM_CM4F
--I
 D:\REPOSITORY\GIT\mySniperLocator\Middlewares\ST\STM32_USB_Device_Library\Core\Inc
 -I
 D:\REPOSITORY\GIT\mySniperLocator\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc
 -I
 D:\REPOSITORY\GIT\mySniperLocator\Middlewares\Third_Party\FatFs\src
--I
-D:\REPOSITORY\GIT\mySniperLocator\Middlewares\Third_Party\FreeRTOS\Source\include
--I
-D:\REPOSITORY\GIT\mySniperLocator\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS
 -I
 D:\REPOSITORY\GIT\mySniperLocator\Drivers\CMSIS\Include
 -I
@@ -261,8 +249,8 @@ C:\Program Files (x86)\IAR Systems\Embedded Workbench 7.0\arm\CMSIS\Include
 -D__HAS_LOCATED_DECLARATION__=1
 -D__HAS_LOCATED_WITH_INIT__=1
 -D__IAR_COMPILERBASE__=593924
--D__DATE__="Apr 10 2015"
--D__TIME__="14:43:46"
+-D__DATE__="Apr 25 2015"
+-D__TIME__="16:14:52"
 -D__STDC__=1
 -D__STDC_VERSION__=199901L
 -D__STDC_HOSTED__=1
