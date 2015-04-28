@@ -1,7 +1,7 @@
 /**
   ******************************************************************************
   * File Name          : main.c
-  * Date               : 27/04/2015 10:56:37
+  * Date               : 28/04/2015 03:44:30
   * Description        : Main program body
   ******************************************************************************
   *
@@ -35,7 +35,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f4xx_hal.h"
 #include "fatfs.h"
-#include "usb_device.h"
 
 /* USER CODE BEGIN Includes */
 
@@ -52,6 +51,8 @@ HAL_SD_CardInfoTypedef SDCardInfo;
 
 UART_HandleTypeDef huart3;
 
+PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
 /* USER CODE BEGIN PV */
 #define DATA_SIZE       0x1008
 typedef enum {
@@ -67,9 +68,10 @@ typedef enum {
   STOP,
   ERROR_SD,
   ERROR_SYNC,
-  ERROR_ADC,
+  WRITING,
   RESET_POWER,
-  OK
+  OK,
+  HARD_ERROR
 } COMMAND;
 
 //-----------------------------------//
@@ -80,12 +82,14 @@ FIL MyFile_time;     /* File object */
 uint8_t SD_DriverNum;
 //char SD_Path[4]/*={'1',':','/','\0'}*/; /* SD card logical drive path */
 DWORD size; 
-char last[2] = {'0','\0'};
+char last[4] = {'0','0','1','\0'};
 char readbuf[2] = {'0','\0'};
+int count_power;
 uint32_t byteswritten, bytesread;
 uint16_t ADCConvValues[DATA_SIZE];
 extern volatile uint16_t DataReceived;
 char nameOfFile[];
+char nameOfFile_send[];
 char timeOfFile[];
 int countData = 0;
 //----------------------------------//
@@ -110,47 +114,87 @@ static void MX_ADC1_Init(void);
 static void MX_RTC_Init(void);
 static void MX_SDIO_SD_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_USB_OTG_FS_PCD_Init(void);
 
 /* USER CODE BEGIN PFP */
+void hardfault_handler(void)
+{
+  aTxBuffer[0] = HARD_ERROR;
+  int i;
+  for (i=0; i<1000; i++)
+  {
+    HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,250);
+  }
+  NVIC_SystemReset();
+}
+static void delay(void)
+{
+  for (int i=0; i < 24000000; i++)
+      {
+        __NOP();        
+      }
+}
+//static void send_name (void)
+//{
+//  int i;
+//  for (i=0; i<1000; i++)
+//  {
+//    HAL_UART_Transmit(&huart3, (uint8_t*)nameOfFile_send, 15,50);
+//  }
+//}
+
+static void send_ok (void)
+{
+  aTxBuffer[0] = OK;
+  int i;
+  for (i=0; i<1000; i++)
+  {
+    HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,500);
+  }
+}
 static void Error_HandlerSD(void)
 {
+  HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1);
   while(1)
   {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
-    for (int i = 0; i < 24000000; i++ )
-      __NOP();
+    aTxBuffer[0] = ERROR_SD;
+    HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,250);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-    for (int i = 0; i < 24000000; i++ )
-      __NOP();
+    delay();
+    HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,250);
+    delay();
+    
   }
 }
 static void Error_HandlerADC(void)
 {
+  HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1);
   while(1)
   {
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-    for (int i = 0; i < 24000000; i++ )
-      __NOP();
+    delay();
     HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
-    for (int i = 0; i < 24000000; i++ )
-      __NOP();
+    delay();
   }
 }
 static void Error_HandlerSync(void)
 {
-  while(1)
-  {
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
-    while (1)
-      __NOP();
-    
-  }
+  HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1);
+    while(1)
+    {
+      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+      while (1)
+        aTxBuffer[0] = ERROR_SYNC;
+      HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,500);
+      
+    }
 }
 static void Error_Handler_UART(void)
 {
@@ -188,8 +232,8 @@ int main(void)
   MX_RTC_Init();
   MX_SDIO_SD_Init();
   MX_USART3_UART_Init();
- // MX_FATFS_Init();
-  MX_USB_DEVICE_Init();
+  MX_USB_OTG_FS_PCD_Init();
+//  MX_FATFS_Init();
 
   /* USER CODE BEGIN 2 */
   /*##-1- Link the micro SD disk I/O driver ##################################*/
@@ -217,9 +261,9 @@ int main(void)
     }
     else
     {
-      size = f_size(&MyFile);
-      f_lseek (&MyFile,(size - 2));
-      f_read(&MyFile, readbuf, sizeof(last), (UINT*)&bytesread);
+      //size = f_size(&MyFile);
+      //f_lseek (&MyFile,(size - 2));
+      f_read(&MyFile, last, sizeof(last), (UINT*)&bytesread);
       f_close(&MyFile);
       if(f_open(&MyFile, "INIT.TXT", FA_WRITE) != FR_OK)
       {
@@ -228,9 +272,22 @@ int main(void)
       }
       else
       {
-        readbuf[0]+=1;
-        last[0]=readbuf[0];
-        f_lseek (&MyFile,(size - 1));
+        //readbuf[0]+=1;
+        count_power = atoi(last);
+        count_power +=1;
+        if (count_power < 10)
+        {
+          sprintf(last, "00%d", count_power);
+        }
+        else if (count_power < 100)
+        {
+        sprintf(last, "0%d", count_power);
+        }
+          //f_lseek (&MyFile,(size - 1));
+        else
+        {
+          sprintf(last, "%d", count_power);
+        }
         f_write(&MyFile, last, sizeof(last), (void *)&byteswritten);
         f_close(&MyFile);
       }
@@ -274,23 +331,23 @@ int main(void)
       break;
       //----------------------------------------//
     case INIT_RECORD:
-      
       HAL_RTC_GetTime(&hrtc, &sTimeNow, RTC_FORMAT_BIN);
       HAL_RTC_GetDate(&hrtc, &sDateNow, RTC_FORMAT_BIN);
-      char nameOfFile[] = {(last[0]),'_',(sTimeNow.Hours+48),'h','_',(sTimeNow.Minutes+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','\0'};
+      char nameOfFile[] = {(last[0]),(last[1]),(last[2]),'_',((sTimeNow.Minutes/10)+48),((sTimeNow.Minutes%10)+48),'h','_',(sTimeNow.Minutes+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','\0'};
       if((res = f_open(&MyFile, nameOfFile, FA_CREATE_ALWAYS | FA_WRITE)) != FR_OK)
       {
         Error_HandlerSD();
       } 
-      char timeOfFile[] = {(last[0]),'_',(sTimeNow.Hours+48),'h','_',(sTimeNow.Minutes+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','_','t','.','t','x','t','\0'};
+      char timeOfFile[] = {(last[0]),(last[1]),(last[2]),'_',(sTimeNow.Hours+48),'h','_',((sTimeNow.Minutes/10)+48),((sTimeNow.Minutes%10)+48),'m','_',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'s','_','t','.','t','x','t','\0'};
       if((res = f_open(&MyFile_time, timeOfFile, FA_CREATE_ALWAYS | FA_WRITE)) != FR_OK)
       {
         Error_HandlerSD();
       } 
-      for (int i=0; i < 24000000; i++)
-      {
-        __NOP();        
-      }
+ //     memcpy(nameOfFile_send,nameOfFile,15);
+      delay();
+      send_ok();
+//      send_name ();
+      delay();
       if(HAL_ADC_Start_DMA(&hadc1, (uint32_t*)ADCConvValues, DATA_SIZE) != HAL_OK) 
       {
         Error_HandlerADC();
@@ -317,7 +374,8 @@ int main(void)
           f_close(&MyFile);
           f_close(&MyFile_time);
           HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
-          state = IDLE;
+          send_ok();
+          
           if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
           {
             Error_Handler_UART();
@@ -406,11 +464,14 @@ void MX_ADC1_Init(void)
     */
   sConfig.Channel = ADC_CHANNEL_2;
   sConfig.Rank = 2;
+  sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
   HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
     /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
     */
   sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_56CYCLES;
   HAL_ADC_ConfigChannel(&hadc1, &sConfig);
 
 }
@@ -497,6 +558,25 @@ void MX_USART3_UART_Init(void)
 
 }
 
+/* USB_OTG_FS init function */
+void MX_USB_OTG_FS_PCD_Init(void)
+{
+
+  hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+  hpcd_USB_OTG_FS.Init.dev_endpoints = 7;
+  hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+  hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.ep0_mps = DEP0CTL_MPS_64;
+  hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+  hpcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.vbus_sensing_enable = ENABLE;
+  hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
+  HAL_PCD_Init(&hpcd_USB_OTG_FS);
+
+}
+
 /** 
   * Enable DMA controller clock
   */
@@ -506,7 +586,7 @@ void MX_DMA_Init(void)
   __DMA2_CLK_ENABLE();
 
   /* DMA interrupt init */
-  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 6, 0);
+  HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
 
 }
@@ -658,11 +738,9 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
       countData = 0;
       if((res = f_sync (&MyFile)) != FR_OK)
       {
-        if((res = f_sync (&MyFile)) != FR_OK)
-        {
           Error_HandlerSync();
-        }
       }
+      
       HAL_RTC_GetTime(&hrtc, &sTimeNow, RTC_FORMAT_BIN);
       HAL_RTC_GetDate(&hrtc, &sDateNow, RTC_FORMAT_BIN);
       char timeOfFile[] = {(sTimeNow.Hours+48),':',((sTimeNow.Minutes/10)+48),((sTimeNow.Minutes%10)+48),':',((sTimeNow.Seconds/10)+48),((sTimeNow.Seconds%10)+48),'\n'};
@@ -677,20 +755,17 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
       }
       if((res = f_sync (&MyFile_time)) != FR_OK)
       {
-        if((res = f_sync (&MyFile_time)) != FR_OK)
-        {
           Error_HandlerSync();
-        }
       }
+      aTxBuffer[0] = WRITING;
+      HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,500);
     }
     
   if (state == RECORD_READY)
   {
+    state = IDLE;
     HAL_ADC_Stop_DMA(&hadc1);
-    for (int i=0; i < 24000000; i++)
-    {
-      __NOP();        
-    }
+    delay();
     file_writing = 0;
   }  
 }
@@ -700,10 +775,10 @@ char string[12] = "Flyability\r\n";
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  while(aTxBuffer[0] != OK)
-  {
-  
-  }
+//  while(aTxBuffer[0] != OK)
+//  {
+//  
+//  }
   switch (aRxBuffer[0])
   {
   case START:
@@ -712,11 +787,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   case STOP:
     state = RECORD_READY;
     break; 
+  case RESET_POWER:
+    NVIC_SystemReset();
+    break; 
   }
+ 
   if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
   {
     Error_Handler_UART();
   }
+  
 }
 /* USER CODE END 4 */
 
