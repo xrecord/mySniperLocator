@@ -294,15 +294,15 @@ int main(void)
     }
   }
   
-  aTxBuffer[0] = READY;
-  while(aRxBuffer[0] != OK)
-  {
-    if(res_uart = HAL_UART_Transmit_IT(&huart3, (uint8_t*)aTxBuffer, 1)!= HAL_OK)
-    {
-      Error_Handler_UART();
-    }
-    HAL_UART_Receive(&huart3, (uint8_t *)aRxBuffer, 1, 500);
-  }
+//  aTxBuffer[0] = READY;
+//  while(aRxBuffer[0] != OK)
+//  {
+//    if(res_uart = HAL_UART_Transmit_IT(&huart3, (uint8_t*)aTxBuffer, 1)!= HAL_OK)
+//    {
+//      Error_Handler_UART();
+//    }
+//    HAL_UART_Receive(&huart3, (uint8_t *)aRxBuffer, 1, 500);
+//  }
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_15, GPIO_PIN_SET);
   if(res_uart = HAL_UART_Receive_IT(&huart3, (uint8_t *)aRxBuffer, 1) != HAL_OK)
   {
@@ -757,8 +757,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
       {
           Error_HandlerSync();
       }
-      aTxBuffer[0] = WRITING;
-      HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,500);
+//      aTxBuffer[0] = WRITING;
+//      HAL_UART_Transmit(&huart3, (uint8_t*)aTxBuffer, 1,500);
     }
     
   if (state == RECORD_READY)
